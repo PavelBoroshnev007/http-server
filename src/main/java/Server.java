@@ -1,16 +1,19 @@
 import java.io.*;
 import java.net.Socket;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.*;
+import java.time.LocalDateTime;
+import java.util.*;
 
 public class Server {
-    private final Socket socket;
+    private final List<String> validPaths;
+    private final Map<String, String> queryParams;
 
-    public Server(Socket socket) {
-        this.socket = socket;
+    public Server() {
+        this.validPaths = List.of("/index.html", "/spring.svg", "/spring.png", "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
+        this.queryParams = new HashMap<>();
     }
 
-    public void handleConnection() {
+    public void handleConnection(Socket socket) {
         try (
                 final var in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 final var out = new BufferedOutputStream(socket.getOutputStream());
@@ -19,13 +22,16 @@ public class Server {
             final var parts = requestLine.split(" ");
 
             if (parts.length != 3) {
+                // just close socket
                 return;
             }
 
-            final var path = parts[1];
-            final var filePath = Path.of(".", "public", path);
+            final var pathWithQuery = parts[1];
+            final var path = getPathFromPathWithQuery(pathWithQuery);
+            queryParams.clear();
+            queryParams.putAll(getQueryParamsFromPathWithQuery(pathWithQuery));
 
-            if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
+            if (!validPaths.contains(path)) {
                 out.write((
                         "HTTP/1.1 404 Not Found\r\n" +
                                 "Content-Length: 0\r\n" +
@@ -36,9 +42,28 @@ public class Server {
                 return;
             }
 
+            final var filePath = Path.of(".", "public", path);
             final var mimeType = Files.probeContentType(filePath);
-            final var length = Files.size(filePath);
 
+            if (path.equals("/classic.html")) {
+                final var template = Files.readString(filePath);
+                final var content = template.replace(
+                        "{time}",
+                        LocalDateTime.now().toString()
+                ).getBytes();
+                out.write((
+                        "HTTP/1.1 200 OK\r\n" +
+                                "Content-Type: " + mimeType + "\r\n" +
+                                "Content-Length: " + content.length + "\r\n" +
+                                "Connection: close\r\n" +
+                                "\r\n"
+                ).getBytes());
+                out.write(content);
+                out.flush();
+                return;
+            }
+
+            final var length = Files.size(filePath);
             out.write((
                     "HTTP/1.1 200 OK\r\n" +
                             "Content-Type: " + mimeType + "\r\n" +
@@ -51,5 +76,35 @@ public class Server {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private String getPathFromPathWithQuery(String pathWithQuery) {
+        return pathWithQuery.split("\\?")[0];
+    }
+
+    private Map<String, String> getQueryParamsFromPathWithQuery(String pathWithQuery) {
+        Map<String, String> queryParams = new HashMap<>();
+        String[] parts = pathWithQuery.split("\\?");
+        if (parts.length > 1) {
+            String query = parts[1];
+            String[] pairs = query.split("&");
+            for (String pair : pairs) {
+                String[] keyValue = pair.split("=");
+                if (keyValue.length > 1) {
+                    String key = keyValue[0];
+                    String value = keyValue[1];
+                    queryParams.put(key, value);
+                }
+            }
+        }
+        return queryParams;
+    }
+
+    public String getQueryParam(String name) {
+        return queryParams.get(name);
+    }
+
+    public Map<String, String> getQueryParams() {
+        return new HashMap<>(queryParams);
     }
 }

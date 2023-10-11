@@ -14,8 +14,8 @@ public class Main {
             while (true) {
                 final var socket = serverSocket.accept();
                 executor.submit(() -> {
-                    Server server = new Server(socket);
-                    server.handleConnection();
+                    Server server = new Server();
+                    server.handleConnection(socket);
                 });
             }
         } catch (IOException e) {
