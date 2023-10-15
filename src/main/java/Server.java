@@ -4,13 +4,12 @@ import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.util.*;
 
+
 public class Server {
     private final List<String> validPaths;
-    private final Map<String, String> queryParams;
 
     public Server() {
         this.validPaths = List.of("/index.html", "/spring.svg", "/spring.png", "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
-        this.queryParams = new HashMap<>();
     }
 
     public void handleConnection(Socket socket) {
@@ -28,8 +27,7 @@ public class Server {
 
             final var pathWithQuery = parts[1];
             final var path = getPathFromPathWithQuery(pathWithQuery);
-            queryParams.clear();
-            queryParams.putAll(getQueryParamsFromPathWithQuery(pathWithQuery));
+            Map<String, String> queryParams = getQueryParamsFromPathWithQuery(pathWithQuery);
 
             if (!validPaths.contains(path)) {
                 out.write((
@@ -99,12 +97,7 @@ public class Server {
         }
         return queryParams;
     }
-
-    public String getQueryParam(String name) {
-        return queryParams.get(name);
-    }
-
-    public Map<String, String> getQueryParams() {
-        return new HashMap<>(queryParams);
-    }
 }
+
+
+
