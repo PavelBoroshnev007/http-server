@@ -4,7 +4,6 @@ import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.util.*;
 
-
 public class Server {
     private final List<String> validPaths;
 
